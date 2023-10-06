@@ -3,14 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce/const/MainColors.dart';
-
 import 'chanel_screen.dart';
 import 'nike_screen.dart';
+import 'package:intl/intl.dart';
 
 class ProductDetails extends StatefulWidget {
-  var _product;
   String _selectedSize = '';
-  int quantityCount = 0;
+  int quantityCount = 1;
   final Map<String, dynamic> _products;
 
   ProductDetails(this._products);
@@ -21,6 +20,8 @@ class ProductDetails extends StatefulWidget {
 
 class _ProductDetailsState extends State<ProductDetails> {
   List<DocumentSnapshot> sellerData = [];
+  List<String> productPrices = [];
+  int quantityCount = 1;
 
   void selectSize(String size) {
     setState(() {
@@ -30,32 +31,49 @@ class _ProductDetailsState extends State<ProductDetails> {
 
   void decrementQuantity() {
     setState(() {
-      widget.quantityCount--;
+      if (widget.quantityCount > 1) {
+        widget.quantityCount--;
+      }
     });
   }
 
-  void incrmentQuantity() {
+  void incrementQuantity() {
     setState(() {
       widget.quantityCount++;
     });
   }
 
   Future addToCart() async {
-    final FirebaseAuth _auth = FirebaseAuth.instance;
-    var currentUser = _auth.currentUser;
-    CollectionReference _collectionRef =
-        FirebaseFirestore.instance.collection("users-cart-items");
-    return _collectionRef
-        .doc(currentUser!.email)
-        .collection("items")
-        .doc()
-        .set({
-      "name": widget._products["product-name"],
-      "price": widget._products["product-price"],
-      "images": widget._products["product-img"],
-      "product-sizes": [widget._selectedSize],
-    }).then((value) => print("Added to cart"));
-  }
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  var currentUser = _auth.currentUser;
+  CollectionReference _collectionRef = FirebaseFirestore.instance.collection("users-cart-items");
+  
+  double totalPrice = calculateTotalPrice();
+  String formattedTotalPrice = NumberFormat('#,###.##').format(totalPrice); // คำนวณราคารวมตามที่คุณต้องการ
+
+  return _collectionRef
+      .doc(currentUser!.email)
+      .collection("items")
+      .doc()
+      .set({
+    "name": widget._products["product-name"],
+    "price": widget._products["product-price"],
+    "images": widget._products["product-img"],
+    "sizes": [widget._selectedSize],
+    "total": "฿ $formattedTotalPrice", // Update total calculation
+  }).then((value) => print("Added to cart"));
+}
+
+double calculateTotalPrice() {
+  // Check if the product price is not null and is a valid double value
+  double productPrice = double.tryParse(widget._products["product-price"] ?? '0') ?? 0;
+  
+  int quantityCount = widget.quantityCount;
+  return productPrice * quantityCount;
+}
+
+
+  
 
   Future addToFavourite() async {
     final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -70,7 +88,7 @@ class _ProductDetailsState extends State<ProductDetails> {
       "name": widget._products["product-name"],
       "price": widget._products["product-price"],
       "images": widget._products["product-img"],
-      "product-sizes": [widget._selectedSize],
+      "sizes": [widget._selectedSize],
     }).then((value) => print("Added to favourite"));
   }
 
@@ -91,82 +109,90 @@ class _ProductDetailsState extends State<ProductDetails> {
   // Rest of your methods (addToCart, addToFavourite, etc.)
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget._products['product-name'],
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
+  Widget build(BuildContext context) {
+
+    double productPrice =
+        double.parse(widget._products['product-price'].replaceAll(',', ''));
+    double productPortage =
+        double.parse(widget._products['product-portage'].replaceAll(',', ''));
+
+    double totalPrice =
+      (productPrice * widget.quantityCount) + productPortage;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget._products['product-name'],
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        body: SingleChildScrollView(
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 12, right: 12, top: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1.5,
-                    child: CarouselSlider(
-                      items: widget._products['product-img']
-                          .map<Widget>((item) => Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 3, right: 3),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: NetworkImage(item),
-                                      fit: BoxFit.fitWidth,
-                                    ),
+      ),
+      body: SingleChildScrollView(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 12, top: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AspectRatio(
+                  aspectRatio: 1.5,
+                  child: CarouselSlider(
+                    items: widget._products['product-img']
+                        .map<Widget>((item) => Padding(
+                              padding: const EdgeInsets.only(left: 3, right: 3),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  image: DecorationImage(
+                                    image: NetworkImage(item),
+                                    fit: BoxFit.fitWidth,
                                   ),
                                 ),
-                              ))
-                          .toList(),
-                      options: CarouselOptions(
-                        autoPlay: false,
-                        enlargeCenterPage: true,
-                        viewportFraction: 0.6,
-                        enlargeStrategy: CenterPageEnlargeStrategy.height,
-                        onPageChanged: (val, carouselPageChangedReason) {
-                          setState(() {});
-                        },
-                      ),
+                              ),
+                            ))
+                        .toList(),
+                    options: CarouselOptions(
+                      autoPlay: false,
+                      enlargeCenterPage: true,
+                      viewportFraction: 0.6,
+                      enlargeStrategy: CenterPageEnlargeStrategy.height,
+                      onPageChanged: (val, carouselPageChangedReason) {
+                        setState(() {});
+                      },
                     ),
                   ),
-                  Text(
-                    "\฿ ${widget._products['product-price'].toString()}",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'คนรับหิ้ว',
-                    style: TextStyle(fontSize: 17, color: Colors.black45),
-                  ),
-                  SizedBox(height: 10),
-                  ListView(
-                    shrinkWrap: true,
-                    children: sellerData.map((DocumentSnapshot document) {
-                      final id = document.id;
-                      String imageUrl = document['image'];
-                      final name = document['name'] as String;
+                ),
+                Text(
+                  "\฿ ${widget._products['product-price'].toString()}",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'คนรับหิ้ว',
+                  style: TextStyle(fontSize: 17, color: Colors.black45),
+                ),
+                SizedBox(height: 10),
+                ListView(
+                  shrinkWrap: true,
+                  children: sellerData.map((DocumentSnapshot document) {
+                    final id = document.id;
+                    String imageUrl = document['image'];
+                    final name = document['name'] as String;
 
-                      return Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Container(
-                          width: MediaQuery.of(context).size.width,
-                          height: 80,
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.red,
-                                  // blurRadius: 1,
-                                  spreadRadius: 2,
-                                )
-                              ]),
-                          child: Center(
-                            child: ListTile(
+                    return Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Container(
+                        width: MediaQuery.of(context).size.width,
+                        height: 80,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red,
+                                // blurRadius: 1,
+                                spreadRadius: 2,
+                              )
+                            ]),
+                        child: Center(
+                          child: ListTile(
                               leading: Container(
                                 width: 50,
                                 height: 50,
@@ -188,8 +214,8 @@ class _ProductDetailsState extends State<ProductDetails> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   IconButton(
-                                    icon: Icon(Icons.message),
-                                    onPressed: () {}),
+                                      icon: Icon(Icons.message),
+                                      onPressed: () {}),
                                 ],
                               ),
                               trailing: ElevatedButton(
@@ -301,7 +327,7 @@ class _ProductDetailsState extends State<ProductDetails> {
                                                           child: IconButton(
                                                               onPressed: () {
                                                                 setState(() =>
-                                                                    incrmentQuantity());
+                                                                    incrementQuantity());
                                                               },
                                                               icon: Icon(
                                                                 Icons.add,
@@ -326,9 +352,18 @@ class _ProductDetailsState extends State<ProductDetails> {
                                                               "product-sizes"])
                                                         GestureDetector(
                                                           onTap: () {
-                                                            setState(() =>
+                                                            setState(() {
+                                                              if (widget
+                                                                      ._selectedSize ==
+                                                                  size) {
+                                                                // ถ้าคลิกครั้งที่สองทำให้ไม่เลือกไซส์
+                                                                widget._selectedSize =
+                                                                    '';
+                                                              } else {
                                                                 selectSize(
-                                                                    size));
+                                                                    size);
+                                                              }
+                                                            });
                                                           },
                                                           child: Container(
                                                             width: 30,
@@ -389,20 +424,6 @@ class _ProductDetailsState extends State<ProductDetails> {
                                                   Row(
                                                     children: [
                                                       Text(
-                                                        "ค่าหิ้ว",
-                                                        style: TextStyle(
-                                                          fontSize: 17,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                      SizedBox(width: 280),
-                                                      Text("฿10")
-                                                    ],
-                                                  ),
-                                                  Row(
-                                                    children: [
-                                                      Text(
                                                         "ค่าส่ง",
                                                         style: TextStyle(
                                                           fontSize: 17,
@@ -410,8 +431,10 @@ class _ProductDetailsState extends State<ProductDetails> {
                                                               FontWeight.w500,
                                                         ),
                                                       ),
-                                                      SizedBox(width: 280),
-                                                      Text("฿50")
+                                                      SizedBox(width: 250),
+                                                      Text(
+                                                        "\฿ ${widget._products['product-portage']}",
+                                                      ),
                                                     ],
                                                   ),
                                                   Row(
@@ -424,9 +447,10 @@ class _ProductDetailsState extends State<ProductDetails> {
                                                               FontWeight.w500,
                                                         ),
                                                       ),
-                                                      SizedBox(width: 220),
+                                                      SizedBox(width: 210),
                                                       Text(
-                                                        "\฿ ${widget._products['product-price'].toString()}",
+                                                        "฿ ${NumberFormat('#,###').format(totalPrice * widget.quantityCount)}",
+                                                      
                                                       ),
                                                     ],
                                                   ),
@@ -557,17 +581,18 @@ class _ProductDetailsState extends State<ProductDetails> {
                                       primary: MainColors.maincolors),
                                   child: Text('ฝากหิ้วสินค้า',
                                       style: TextStyle(
-                                          fontWeight: FontWeight.bold)))
-                            ),
-                          ),
+                                          fontWeight: FontWeight.bold)))),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                SizedBox(height: 30),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }

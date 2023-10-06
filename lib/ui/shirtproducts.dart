@@ -28,6 +28,7 @@ class _ShirtProductsState extends State<ShirtProducts> {
           "product-description": qn.docs[i]["product-description"],
           "product-price": qn.docs[i]["product-price"],
           "product-img": qn.docs[i]["product-img"],
+          "product-portage": qn.docs[i]["product-portage"],
         });
       }
     });

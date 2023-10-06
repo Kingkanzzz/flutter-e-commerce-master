@@ -324,8 +324,11 @@ class _HomeState extends State<Home> {
             ),
             SizedBox(height: 10),
             // ElevatedButton(
-            //     onPressed: () => Navigator.of(context).push(
-            //         MaterialPageRoute(builder: (context) => Test(sellers))),
+            //     onPressed: () {
+            //       Navigator.push(context, MaterialPageRoute(builder: (context) {
+            //         return YourWidget();
+            //       }));
+            //     },
             //     child: Text('ฝากหิ้ว'))
           ],
         ),
